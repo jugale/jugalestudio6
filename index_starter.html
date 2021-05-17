@@ -3,6 +3,8 @@
 <head>
 	<title>Mali Health Sites Map</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+	<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+	<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 	<style>
 		body {
 			margin: 0px;
@@ -29,8 +31,38 @@
 			width: 780px;
 			margin: 0 auto;
 			height: 500px;
+
+		}
+		.legend {
+			line-height: 18px;
+			color: #333333;
+			font-family: Helvetica, sans-serif;
+			padding: 6px 8px;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
 		}
 
+		.legend i {
+			width: 18px;
+			height: 18px;
+			float: left;
+			margin-right: 8px;
+			opacity: 0.7;
+		}
+
+		.legend img {
+			width: 18px;
+			height: 18px;
+			float: left;
+		}
+
+		.legend p {
+			font-size: 12px;
+			line-height: 18px;
+			margin: 0;
+		}
 		#controls {
 			width: 100%;
 			margin: 0 auto;
@@ -61,32 +93,132 @@
 			<!-- Here is the code for a button if we were going to add them.
 			<button class="button" id="toggleButton">BUTTON!</button>
 			-->
-			<div id="narrative"><p>You can put narrative text or explanation here.</p></div>
+			<div id="narrative"> <h2> Narrative</h2> <p>Changes that I made to the original map was to alter the pop-up to have the amenity name as the title, and the amenity type listed below. Ideally, I would format the pop-up to have a colored header banner, so the name of the site was even more distinct. I would also fix the capitalization of the amenity names and types so that they were consistent over the dataset. As for the icons, I tried to select images that were distinct from one another. However I had some difficulty when selecting distinct icons for hospitals and clinics, as the options on <a href="https://thenounproject.com/">the Noun Project</a> where I was searching were very similar. Because of the similarity, I opted to use an H to represent hospitals given that the intended audience is french speaking. <br> <br>To improve the utility of this map, I would enable layer controls to toggle on and off the amenities. I attempted to do this by using `L.control.layers` so that users would see a layer button in the top right corner, and be able to turn on and off amenities using a checkbox. I got to a stage that I got the layer control button to appear, but could not get each amenity to appear as an option to select. There were few online resources to toggle a GeoJSON based on the properties from a single feature collection. However, I was able to find  <a href="https://stackoverflow.com/questions/33478202/leaflet-how-to-toggle-geojson-feature-properties-from-a-single-collection/33478639#33478639">this Stack Overflow</a>, accompanied by <a href="http://plnkr.co/edit/Zv2xwv?p=preview&preview"> this interactive example</a> on plnkr. With more time I believe I would be able to figure out how to apply layer controls to this map.
+Additionally to the toggling of icons, I believe this map would be more legible if icon density were tied to zoom level. This would reduce the cluttering of icons at the default zoom level, and increase the amount of icons a user could see as they zoomed into a specific location. </p></div>
 		</div>
 	</div>
 	<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 	<script>
     	// Create Map Object
-    	var map = L.map('map',{ center: [39.7644,-104.8548], zoom: 9 });
+    	var map = L.map('map',{ center: [16.5, 0.0], zoom: 5.4 });
 
     	// Add Tile Layer
-		L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
-			attribution: 'Tiles by <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a> | Data by <a href="url here">Who???</a>',
-			maxZoom: 17,
-			minZoom: 9
+			L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+			attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+			maxZoom: 16
 		}).addTo(map);
 
 		// Add GeoJSON Data
+		// Null variable that will hold Healthsites data
+		var Healthsites = null;
+
+		// Add GeoJSON Data to the map when it loads
+		$.getJSON("data/Mali_healthsites.geojson",function(data){
+		    // set Healthsites to the dataset and add the Healthsites GeoJSON layer to the map
+		    	Healthsites = L.geoJson(data,{
+		      onEachFeature: function (feature, layer) {
+		        layer.bindPopup('<h3>'+feature.properties.name + '</h3>' +'<b>Type:</b> '+feature.properties.amenity);
+		      }, pointToLayer: function (feature, latlng) {
+		        if (feature.properties.amenity == "clinic"){ // Replacing previous marker with conditionals
+		          var marker = L.marker(latlng,{icon: clinicIcon});
+		        } else if (feature.properties.amenity == "dentist") {
+		          var marker = L.marker(latlng,{icon: dentistIcon});
+		        } else if (feature.properties.amenity == "doctors") {
+		          var marker = L.marker(latlng,{icon: doctorsIcon});
+		        } else if (feature.properties.amenity == "hospital") {
+		          var marker = L.marker(latlng,{icon: hospitalIcon});
+		        } else {
+		          var marker = L.marker(latlng,{icon: pharmacyIcon});
+		        };
+		      return marker;
+		      }
+		    }).addTo(map);
+		});
 
 		// Create Custom Icons Here
+		// Start by creating a standard Health Icon
+		var healthIcon = L.Icon.extend({ // adding the .extend and capital I!
+		  options:{
+		    iconUrl: 'icons/health_facility.png',
+		    iconSize: [24,24],
+		    iconAnchor: [12,12],
+		    popupAnchor: [0,-6]
+		  }
+		});
+
+		// Create specific icons for amenity types
+		var clinicIcon = new healthIcon({iconUrl: 'icons/clinic.png'});
+		var dentistIcon = new healthIcon({iconUrl: 'icons/dentist.png'});
+		var doctorsIcon = new healthIcon({iconUrl: 'icons/doctor.png'});
+		var hospitalIcon = new healthIcon({iconUrl: 'icons/health_facility.png'});
+		var pharmacyIcon = new healthIcon({iconUrl: 'icons/medicine.png'});
+
 
 		// Add Admin unit Polygons
+		// Null variable that will hold admin units layer
+		var adminLayer = null;
 
+		// Add Admin Polygons
+		// Add Admin Polygons
+		$.getJSON("data/Mali_Prevalence_Global_Acute_Malnutrition.geojson",function(data){
+		    adminLayer = L.geoJson(data, {style: style}).addTo(map); // we added {style: style} here.
+		});
+		// Set function for color ramp w/ colors from Colorbrewer
+		function setColor(Wast_Text){
+		return Wast_Text == 'High' ? '#de2d26' :
+		  Wast_Text == 'Medium' ? '#fc9272' :
+		  Wast_Text == 'Low' ? '#fee0d2' :
+		                   '#d4cfcd';
+		};
+		// Set style function that sets fill color property equal to FI_Class
+		function style(feature) {
+		  return {
+		    fillColor: setColor(feature.properties.Wast_Text),
+		    fillOpacity: 0.7,
+		    weight: 0,
+		    opacity: 0,
+		    color: '#ffffff',
+		    dashArray: '0'
+		  };
+		}
 		// Create Leaflet Control Object for Legend
 
-		// Add Scale Bar to Map
+		// Create Leaflet Control Object for Legend
+		var legend = L.control({
+		  position: 'topright'
+		});
 
+		// Function that runs when legend is added to map
+		legend.onAdd = function(map) {
+
+		  // Create Div Element and Populate it with HTML
+		  var div = L.DomUtil.create('div', 'legend');
+		  div.innerHTML += '<b>Prevalence of wasting </b><br/>';
+		  div.innerHTML += '<b>in children < 5 yrs. old,</b><br/>';
+		  div.innerHTML += '<b>by region</b><br/>';
+		  div.innerHTML += '<i style="background: #de2d26"></i><p>High</p>';
+		  div.innerHTML += '<i style="background: #fc9272"></i><p>Medium</p>';
+		  div.innerHTML += '<i style="background: #fee0d2"></i><p>Low</p>';
+		  div.innerHTML += '<i style="background: #d4cfcd"></i><p>Uncategorized</p>';
+		  div.innerHTML += '<hr><img src="icons/clinic.png"><p>Clinic</p>';
+		  div.innerHTML += '<img src="icons/dentist.png"><p>Dentist</p>';
+		  div.innerHTML += '<img src="icons/doctor.png"><p>Doctor</p>';
+		  div.innerHTML += '<img src="icons/health_facility.png"><p>Hospital</p>';
+		  div.innerHTML += '<img src="icons/medicine.png"><p>Pharmacy</p>';
+		  // Return the Legend div containing the HTML content
+		  return div;
+		};
+
+		// Add Legend to Map
+		legend.addTo(map);
+		// Add Scale Bar to Map
+		L.control.scale({position: 'bottomleft'}).addTo(map);
+
+		var overlayMaps = {
+		 "Clinics": HealthSites
+		};
+		L.control.layers(null, overlayMaps).addTo(map);
 
 	</script>
 </body>
